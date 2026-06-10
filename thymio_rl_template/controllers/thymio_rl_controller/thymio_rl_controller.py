@@ -625,7 +625,7 @@ def main():
     only_evaluate = True
 
     ## Altera estes cinco valores entre experiências.
-    experiment_name = "ppo_tanh_random_simple_antispin_stuck_50k"
+    experiment_name = "ppo_tanh_random_ablation_no_exploration_50k"
     model_type = "PPO"
     activation_name = "Tanh"
     environment_name = "random"
