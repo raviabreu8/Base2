@@ -23,6 +23,7 @@ class ThymioReward:
         max_forward_reward=0.15,
         obstacle_penalty_scale=0.30,
         rotation_penalty_scale=0.02,
+        cliff_warning_penalty=-1.00,
         cliff_penalty=-20.00,
         collision_penalty=-5.00,
         fall_penalty=-20.00
@@ -60,6 +61,11 @@ class ThymioReward:
         ## Escala da penalização por diferença entre as rodas.
         self.rotation_penalty_scale = float(
             rotation_penalty_scale
+        )
+
+        ## Penalização de aviso recuperável de precipício.
+        self.cliff_warning_penalty = float(
+            cliff_warning_penalty
         )
 
         ## Penalizações terminais.
@@ -173,6 +179,7 @@ class ThymioReward:
         action,
         observation,
         position,
+        cliff_warning,
         cliff_terminal,
         collision,
         fall
@@ -195,13 +202,19 @@ class ThymioReward:
             or fall
         )
 
+        ## Um aviso não termina, mas o passo já não é seguro.
+        unsafe_event = bool(
+            cliff_warning
+            or terminal_event
+        )
+
         # =====================================================
         # 1. SOBREVIVÊNCIA
         # =====================================================
 
         survival_reward = float(
             self.survival_reward_value
-            if not terminal_event
+            if not unsafe_event
             else 0.0
         )
 
@@ -216,7 +229,7 @@ class ThymioReward:
         ) = self.compute_exploration_reward(
             position=position,
             allow_update=(
-                not terminal_event
+                not unsafe_event
             )
         )
 
@@ -280,7 +293,19 @@ class ThymioReward:
         )
 
         # =====================================================
-        # 6. EVENTO TERMINAL
+        # 6. AVISO DE PRECIPÍCIO
+        # =====================================================
+
+        ## Penalização leve: o episódio continua.
+        cliff_warning_reward = float(
+            self.cliff_warning_penalty
+            if cliff_warning
+            and not terminal_event
+            else 0.0
+        )
+
+        # =====================================================
+        # 7. EVENTO TERMINAL
         # =====================================================
 
         if fall:
@@ -306,6 +331,7 @@ class ThymioReward:
             + forward_reward
             + obstacle_reward
             + rotation_reward
+            + cliff_warning_reward
             + terminal_reward
         )
 
@@ -316,12 +342,16 @@ class ThymioReward:
             "reward_forward": forward_reward,
             "reward_obstacle": obstacle_reward,
             "reward_rotation": rotation_reward,
+            "reward_cliff_warning": cliff_warning_reward,
             "reward_terminal": terminal_reward,
-            "reward_cliff": (
-                self.cliff_penalty
-                if cliff_terminal
-                and not fall
-                else 0.0
+            "reward_cliff": float(
+                cliff_warning_reward
+                + (
+                    self.cliff_penalty
+                    if cliff_terminal
+                    and not fall
+                    else 0.0
+                )
             ),
             "reward_collision": (
                 self.collision_penalty

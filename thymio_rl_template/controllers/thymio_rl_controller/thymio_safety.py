@@ -4,14 +4,17 @@ import numpy as np
 
 class ThymioSafety:
     """
-    Deteta precipícios e quedas do Thymio.
+    Deteta avisos de precipício, precipícios críticos
+    e quedas do Thymio.
     """
 
     def __init__(
         self,
         robot_pose,
+        cliff_warning_threshold=0.45,
         cliff_threshold=0.30,
-        ground_change_threshold=0.40,
+        ground_change_threshold=0.30,
+        cliff_warning_limit=2,
         fall_height_drop=0.025,
         fall_tilt_degrees=8.0
     ):
@@ -23,14 +26,24 @@ class ThymioSafety:
             robot_pose.initial_translation[2]
         )
 
-        ## Sensor de chão abaixo deste valor indica borda.
+        ## Abaixo deste valor começa a zona de aviso.
+        self.cliff_warning_threshold = float(
+            cliff_warning_threshold
+        )
+
+        ## Abaixo deste valor o precipício é crítico.
         self.cliff_threshold = float(
             cliff_threshold
         )
 
-        ## Mudança súbita dos sensores de chão.
+        ## Mudança mínima da leitura para gerar aviso.
         self.ground_change_threshold = float(
             ground_change_threshold
+        )
+
+        ## Número de avisos acumulados para tornar o cliff terminal.
+        self.cliff_warning_limit = int(
+            cliff_warning_limit
         )
 
         self.fall_height_drop = float(
@@ -41,77 +54,122 @@ class ThymioSafety:
             fall_tilt_degrees
         )
 
-        ## Guarda a leitura anterior dos dois sensores de chão.
-        self.previous_ground_sensors = None
+        ## Menor leitura dos sensores no passo anterior.
+        self.previous_gs_min = None
+
+        ## Número de avisos acumulados.
+        self.cliff_warning_count = 0
 
     def reset(
         self,
         observation
     ):
-        """Inicializa a memória dos sensores no começo do episódio."""
+        """Reinicia a memória dos sensores no início do episódio."""
 
-        self.previous_ground_sensors = np.asarray(
+        ground_sensors = np.asarray(
             observation[5:7],
             dtype=np.float32
-        ).copy()
+        )
+
+        self.previous_gs_min = float(
+            np.min(
+                ground_sensors
+            )
+        )
+
+        self.cliff_warning_count = 0
 
     def detect_cliff(
         self,
         observation
     ):
         """
-        Deteta borda confirmada ou mudança súbita nos sensores de chão.
+        Deteta aproximação e risco crítico de precipício.
 
         Devolve:
-            cliff_terminal,
+            critical_cliff,
+            cliff_warning,
             confirmed_cliff,
-            sudden_ground_change,
-            maximum_ground_change
+            delta_gs,
+            gs_min,
+            cliff_warning_count
         """
 
-        current_ground_sensors = np.asarray(
+        ground_sensors = np.asarray(
             observation[5:7],
             dtype=np.float32
         )
 
-        confirmed_cliff = bool(
-            np.any(
-                current_ground_sensors
-                < self.cliff_threshold
+        gs_left = float(
+            ground_sensors[0]
+        )
+
+        gs_right = float(
+            ground_sensors[1]
+        )
+
+        ## O sensor com menor leitura é o mais próximo da borda.
+        gs_min = float(
+            min(
+                gs_left,
+                gs_right
             )
         )
 
-        if self.previous_ground_sensors is None:
-            maximum_ground_change = 0.0
+        if self.previous_gs_min is None:
+            delta_gs = 0.0
         else:
-            maximum_ground_change = float(
-                np.max(
-                    np.abs(
-                        current_ground_sensors
-                        - self.previous_ground_sensors
-                    )
+            delta_gs = float(
+                abs(
+                    gs_min
+                    - self.previous_gs_min
                 )
             )
 
-        sudden_ground_change = bool(
-            maximum_ground_change
+        ## Nível 1: aproximação à borda ou mudança rápida.
+        warning_signal = bool(
+            gs_min
+            < self.cliff_warning_threshold
+            or
+            delta_gs
             > self.ground_change_threshold
         )
 
-        cliff_terminal = bool(
-            confirmed_cliff
-            or sudden_ground_change
+        if warning_signal:
+            self.cliff_warning_count += 1
+        else:
+            ## Em chão seguro, o aviso diminui gradualmente.
+            self.cliff_warning_count = max(
+                0,
+                self.cliff_warning_count - 1
+            )
+
+        cliff_warning = bool(
+            self.cliff_warning_count > 0
         )
 
-        self.previous_ground_sensors = (
-            current_ground_sensors.copy()
+        ## Nível crítico: leitura já muito baixa.
+        #apenas diagnostico n entra na recompensa
+        confirmed_cliff = bool(
+            gs_min
+            < self.cliff_threshold
         )
+
+        ## Termina por leitura crítica ou dois avisos acumulados.
+        critical_cliff = bool(
+            self.cliff_warning_count
+            >= self.cliff_warning_limit
+        )
+
+        self.previous_gs_min = gs_min
 
         return (
-            cliff_terminal,
+            critical_cliff,
+            cliff_warning,
             confirmed_cliff,
-            sudden_ground_change,
-            maximum_ground_change
+            delta_gs,
+            gs_min,
+            self.cliff_warning_count
         )
 
     def get_tilt_degrees(self):

@@ -155,8 +155,10 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
 
         self.safety = ThymioSafety(
             robot_pose=self.robot_pose,
+            cliff_warning_threshold=0.45,
             cliff_threshold=0.30,
-            ground_change_threshold=0.40,
+            ground_change_threshold=0.30,
+            cliff_warning_limit=2,
             fall_height_drop=0.025,
             fall_tilt_degrees=8.0
         )
@@ -169,9 +171,10 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
             max_forward_reward=0.15,
             obstacle_penalty_scale=0.30,
             rotation_penalty_scale=0.02,
-            cliff_penalty=-10.00,
+            cliff_warning_penalty=-1.00,
+            cliff_penalty=-20.00,
             collision_penalty=-5.00,
-            fall_penalty=-10.00
+            fall_penalty=-20.00
         )
 
         self.motors.stop()
@@ -275,10 +278,12 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
         )
 
         (
-            cliff_terminal,
+            critical_cliff,
+            cliff_warning,
             confirmed_cliff,
-            sudden_ground_change,
-            maximum_ground_change
+            delta_gs,
+            gs_min,
+            cliff_warning_count
         ) = self.safety.detect_cliff(
             self.state
         )
@@ -316,14 +321,15 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
             action=action,
             observation=self.state,
             position=position,
-            cliff_terminal=cliff_terminal,
+            cliff_warning=cliff_warning,
+            cliff_terminal=critical_cliff,
             collision=collision,
             fall=fall
         )
 
         terminated = bool(
             fall
-            or cliff_terminal
+            or critical_cliff
             or collision
         )
 
@@ -341,13 +347,13 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
                 position,
                 dtype=np.float32
             ),
-            "cliff": bool(cliff_terminal),
+            "cliff": bool(critical_cliff),
+            "cliff_warning": bool(cliff_warning),
             "confirmed_cliff": bool(confirmed_cliff),
-            "sudden_ground_change": bool(
-                sudden_ground_change
-            ),
-            "maximum_ground_change": float(
-                maximum_ground_change
+            "delta_gs": float(delta_gs),
+            "gs_min": float(gs_min),
+            "cliff_warning_count": int(
+                cliff_warning_count
             ),
             "collision": bool(collision),
             "max_front_proximity": float(
@@ -362,7 +368,7 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
                 if fall
                 else (
                     "cliff"
-                    if cliff_terminal
+                    if critical_cliff
                     else (
                         "collision"
                         if collision
@@ -508,7 +514,7 @@ def main():
     only_evaluate = True
 
     ## Altera estes cinco valores entre experiências.
-    experiment_name = "ppo_tanh_random_reward_v2"
+    experiment_name = "ppo_tanh_random_cliff_warning_v3_1"
     model_type = "PPO"
     activation_name = "Tanh"
     environment_name = "random"
@@ -577,7 +583,7 @@ def main():
     results_csv = SimpleResultsCSV(
         csv_path=os.path.join(
             results_directory,
-            "results_v2.csv"
+            "results.csv"
         )
     )
 
@@ -836,6 +842,21 @@ def main():
                 "  Motivo:",
                 episode_reason
             )
+            if episode_reason == "cliff":
+                print(
+                    "  Cliff confirmado:",
+                    info["confirmed_cliff"]
+                )
+
+                print(
+                    "  Menor sensor de chão:",
+                    round(info["gs_min"], 3)
+                )
+
+                print(
+                    "  Contador de avisos:",
+                    info["cliff_warning_count"]
+                )
 
         mean_covered_area_m2 = float(
             np.mean(

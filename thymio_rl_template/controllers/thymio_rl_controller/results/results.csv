@@ -4,3 +4,5 @@ recurrent_tanh_random_full,RecurrentPPO,Tanh,random,none,20480,5,0.015,0,5,,-58.
 recurrent_tanh_random_reward_v2,RecurrentPPO,Tanh,random,none,20480,5,0.072,0,0,5,-0.77989,4.364188,5.144077
 ppo_tanh_random_reward_v2,PPO,Tanh,random,none,20480,5,0.072,0,0,5,13.446049,-10.087136,-23.533185
 ppo_tanh_v2_10penaltyFallCliff,PPO,Tanh,random,none,20480,5,0.056,1,0,,31.889338,11.926886,-19.962453
+ppo_tanh_random_cliff_warning_v3,PPO,Tanh,random,none,20480,5,0.072,0,0,5,13.305966,-4.236912,-17.542878
+ppo_tanh_random_cliff_warning_v3.1,PPO,Tanh,random,none,20480,5,0.096,0,0,3,18.431409,-8.783563,-27.214971
