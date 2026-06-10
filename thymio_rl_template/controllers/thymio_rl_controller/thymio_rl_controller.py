@@ -283,6 +283,8 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
             confirmed_cliff,
             delta_gs,
             gs_min,
+            gs_left,
+            gs_right,
             cliff_warning_count
         ) = self.safety.detect_cliff(
             self.state
@@ -352,6 +354,8 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
             "confirmed_cliff": bool(confirmed_cliff),
             "delta_gs": float(delta_gs),
             "gs_min": float(gs_min),
+            "gs_left": float(gs_left),
+            "gs_right": float(gs_right),
             "cliff_warning_count": int(
                 cliff_warning_count
             ),
@@ -851,6 +855,14 @@ def main():
                 print(
                     "  Menor sensor de chão:",
                     round(info["gs_min"], 3)
+                )
+                print(
+                    "  Ground esquerdo:",
+                     round(info["gs_left"], 3)
+                )
+                print(
+                    "  Ground direito:",
+                    round(info["gs_right"], 3)
                 )
 
                 print(

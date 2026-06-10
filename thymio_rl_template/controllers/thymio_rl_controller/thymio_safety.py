@@ -169,6 +169,8 @@ class ThymioSafety:
             confirmed_cliff,
             delta_gs,
             gs_min,
+            gs_left,
+            gs_right,
             self.cliff_warning_count
         )
 
