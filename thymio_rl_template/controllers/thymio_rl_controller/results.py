@@ -73,6 +73,7 @@ class SimpleResultsCSV:
         "mean_covered_area_m2",
         "total_collisions",
         "total_falls",
+        "total_cliff_terminations",
         "mean_reward_start",
         "mean_reward_end",
         "reward_improvement"
@@ -110,6 +111,7 @@ class SimpleResultsCSV:
         mean_covered_area_m2,
         total_collisions,
         total_falls,
+        total_cliff_terminations,
         mean_reward_start,
         mean_reward_end,
         reward_improvement
@@ -129,6 +131,9 @@ class SimpleResultsCSV:
             ),
             "total_collisions": int(total_collisions),
             "total_falls": int(total_falls),
+            "total_cliff_terminations": int(
+                total_cliff_terminations
+            ),
             "mean_reward_start": self._clean_number(
                 mean_reward_start
             ),

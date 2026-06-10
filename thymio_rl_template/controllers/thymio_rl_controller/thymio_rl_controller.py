@@ -169,9 +169,9 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
             max_forward_reward=0.15,
             obstacle_penalty_scale=0.30,
             rotation_penalty_scale=0.02,
-            cliff_penalty=-20.00,
+            cliff_penalty=-10.00,
             collision_penalty=-5.00,
-            fall_penalty=-20.00
+            fall_penalty=-10.00
         )
 
         self.motors.stop()
@@ -471,7 +471,7 @@ def main():
     # =========================================================
 
     ## Altera estes cinco valores entre experiências.
-    experiment_name = "ppo_tanh_random_reward_v2"
+    experiment_name = "ppo_tanh_v2_10penaltyFallCliff"
     model_type = "PPO"
     activation_name = "Tanh"
     environment_name = "random"
@@ -540,7 +540,7 @@ def main():
     results_csv = SimpleResultsCSV(
         csv_path=os.path.join(
             results_directory,
-            "results.csv"
+            "results_v2.csv"
         )
     )
 
@@ -616,6 +616,7 @@ def main():
         covered_areas = []
         total_collisions = 0
         total_falls = 0
+        total_cliff_terminations = 0
 
         cell_size = 0.20
         collision_threshold = 0.95
@@ -725,6 +726,16 @@ def main():
             if info["fall"]:
                 total_falls += 1
 
+            #NOVO
+            episode_reason = (
+                info["termination_reason"]
+                if terminated
+                else info["truncation_reason"]
+            )
+
+            if episode_reason == "cliff":
+                total_cliff_terminations += 1
+
             print()
             print(
                 "Episódio",
@@ -752,6 +763,10 @@ def main():
             print(
                 "  Queda:",
                 bool(info["fall"])
+            )
+            print(
+                "  Motivo:",
+                episode_reason
             )
 
         mean_covered_area_m2 = float(
@@ -783,6 +798,9 @@ def main():
                 total_collisions
             ),
             total_falls=total_falls,
+            total_cliff_terminations=(
+                total_cliff_terminations
+            ),
             mean_reward_start=(
                 mean_reward_start
             ),
@@ -814,6 +832,10 @@ def main():
         print(
             "Total de quedas:",
             total_falls
+        )
+        print(
+            "Total de terminações por cliff:",
+            total_cliff_terminations
         )
 
     finally:
