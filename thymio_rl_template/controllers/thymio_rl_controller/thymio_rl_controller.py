@@ -168,8 +168,8 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
         self.reward_function = ThymioReward(
             cell_size=0.20,
             survival_reward=0.01,
-            new_cell_reward=1.00,
-            revisit_penalty=-0.02,
+            new_cell_reward=0.00,
+            revisit_penalty=0.00,
             max_forward_reward=0.02,
             obstacle_penalty_scale=0.30,
             rotation_penalty_scale=0.02,
@@ -629,7 +629,7 @@ def main():
     model_type = "PPO"
     activation_name = "Tanh"
     environment_name = "random"
-    ablation_name = "none"
+    ablation_name = "no_exploration"
 
     total_training_steps = 50000
     max_episode_steps = 600
