@@ -113,6 +113,8 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
         )
 
         self.initial_yaw = 0.0
+        self.previous_position_for_stuck = None
+        self.cliff_stuck_count = 0
 
     def reset(
         self,
@@ -158,9 +160,9 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
             cliff_warning_threshold=0.45,
             cliff_threshold=0.30,
             ground_change_threshold=0.30,
-            cliff_warning_limit=8,
-            fall_height_drop=0.025,
-            fall_tilt_degrees=8.0
+            cliff_warning_limit=20,
+            fall_height_drop=0.05,
+            fall_tilt_degrees=12.0
         )
 
         self.reward_function = ThymioReward(
@@ -171,11 +173,11 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
             max_forward_reward=0.06,
             obstacle_penalty_scale=0.30,
             rotation_penalty_scale=0.02,
-            cliff_warning_penalty=-0.20,
-            ground_recovery_scale=4.00,
+            cliff_warning_penalty=-0.25,
+            ground_recovery_scale=8.00,
             dangerous_forward_penalty_scale=2.00,
-            reverse_recovery_scale=3.00,
-            turn_away_scale=2.00,
+            reverse_recovery_scale=1.00,
+            turn_away_scale=1.00,
             collision_penalty=-50.00,
             fall_penalty=-150.00,
             cliff_penalty=-80.00
@@ -232,6 +234,13 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
             .robot_node
             .getPosition()
         )
+
+        self.previous_position_for_stuck = np.asarray(
+            initial_position[:2],
+            dtype=np.float32
+        )
+
+        self.cliff_stuck_count = 0
 
         self.reward_function.reset(
             initial_position=initial_position
@@ -322,6 +331,54 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
             .getPosition()
         )
 
+        current_position_xy = np.asarray(
+            position[:2],
+            dtype=np.float32
+        )
+
+        if self.previous_position_for_stuck is None:
+            movement_delta = 0.0
+        else:
+            movement_delta = float(
+                np.linalg.norm(
+                    current_position_xy
+                    - self.previous_position_for_stuck
+                )
+            )
+
+        commanded_motion = bool(
+            np.max(
+                np.abs(
+                    action
+                )
+            )
+            > 0.25
+        )
+
+        if (
+            cliff_warning
+            and commanded_motion
+            and movement_delta < 0.001
+        ):
+            self.cliff_stuck_count += 1
+        elif not cliff_warning:
+            self.cliff_stuck_count = 0
+        else:
+            self.cliff_stuck_count = max(
+                0,
+                self.cliff_stuck_count - 1
+            )
+
+        cliff_stuck = bool(
+            self.cliff_stuck_count >= 100
+        )
+
+        cliff_terminal = bool(
+            cliff_stuck
+        )
+
+        self.previous_position_for_stuck = current_position_xy
+
         (
             reward,
             reward_info
@@ -330,7 +387,7 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
             observation=self.state,
             position=position,
             cliff_warning=cliff_warning,
-            cliff_terminal=critical_cliff,
+            cliff_terminal=cliff_terminal,
             collision=collision,
             fall=fall
         )
@@ -338,7 +395,7 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
 
         terminated = bool(
             fall
-            or critical_cliff
+            or cliff_terminal
             or collision
         )
 
@@ -357,6 +414,14 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
                 dtype=np.float32
             ),
             "cliff": bool(critical_cliff),
+            "cliff_terminal": bool(cliff_terminal),
+            "cliff_stuck": bool(cliff_stuck),
+            "cliff_stuck_count": int(
+                self.cliff_stuck_count
+            ),
+            "movement_delta": float(
+                movement_delta
+            ),
             "cliff_warning": bool(cliff_warning),
             "confirmed_cliff": bool(confirmed_cliff),
             "delta_gs": float(delta_gs),
@@ -385,7 +450,7 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
                 if fall
                 else (
                     "cliff"
-                    if critical_cliff
+                    if cliff_terminal
                     else (
                         "collision"
                         if collision
@@ -531,7 +596,7 @@ def main():
     only_evaluate = True
 
     ## Altera estes cinco valores entre experiências.
-    experiment_name = "ppo_tanh_random_hybrid_cliff_50k"
+    experiment_name = "ppo_tanh_random_recovery_no_sensor_terminal_50k"
     model_type = "PPO"
     activation_name = "Tanh"
     environment_name = "random"

@@ -397,6 +397,19 @@ class ThymioReward:
 
         ## Em risco de precipício, recuar é imediatamente
         ## melhor do que continuar a avançar.
+        recovery_progress = float(
+            np.clip(
+                ground_improvement / 0.05,
+                0.0,
+                1.0
+            )
+        )
+
+        recovery_action_gate = float(
+            0.20
+            + 0.80 * recovery_progress
+        )
+
         reverse_recovery_reward = float(
             self.reverse_recovery_scale
             * max(
@@ -404,6 +417,7 @@ class ThymioReward:
                 0.0
             )
             * cliff_risk
+            * recovery_action_gate
             if cliff_active
             and not terminal_event
             else 0.0
@@ -459,6 +473,7 @@ class ThymioReward:
             * turn_away_amount
             * cliff_risk
             * turn_direction_confidence
+            * recovery_action_gate
         )
 
         # =====================================================

@@ -5,10 +5,14 @@ recurrent_tanh_random_reward_v2,RecurrentPPO,Tanh,random,none,20480,5,0.072,0,0,
 ppo_tanh_random_reward_v2,PPO,Tanh,random,none,20480,5,0.072,0,0,5,13.446049,-10.087136,-23.533185
 ppo_tanh_v2_10penaltyFallCliff,PPO,Tanh,random,none,20480,5,0.056,1,0,,31.889338,11.926886,-19.962453
 ppo_tanh_random_cliff_warning_v3,PPO,Tanh,random,none,20480,5,0.072,0,0,5,13.305966,-4.236912,-17.542878
-ppo_tanh_random_cliff_warning_v3.1,PPO,Tanh,random,none,20480,5,0.096,0,0,3,18.431409,-8.783563,-27.214971ppo_tanh_random_final_no_circles,PPO,Tanh,random,none,20480,5,0.08,0,1,4,-10.936088,-22.839548,-11.90346
+ppo_tanh_random_cliff_warning_v3.1,PPO,Tanh,random,none,20480,5,0.096,0,0,3,18.431409,-8.783563,-27.214971
+ppo_tanh_random_final_no_circles,PPO,Tanh,random,none,20480,5,0.08,0,1,4,-10.936088,-22.839548,-11.90346
 ppo_tanh_random_balanced_turn,PPO,Tanh,random,none,20480,5,0.072,0,1,4,-1.28097,-14.531926,-13.250957
 ppo_tanh_random_cliff_nonterminal,PPO,Tanh,random,none,20480,5,0.072,0,5,0,-17.675812,-0.519084,17.156728
 ppo_tanh_random_cliff_recovery_reward,PPO,Tanh,random,none,20480,5,0.08,0,5,0,-16.025321,-23.46249,-7.437169
 ppo_tanh_random_cliff_recovery_reward_150k,PPO,Tanh,random,none,150000,5,0.08,0,5,0,-16.025321,-20.553113,-4.527792
 ppo_tanh_random_directional_cliff_recovery,PPO,Tanh,random,none,20480,5,0.072,0,4,0,-11.22654,-80.022362,-68.795822
 ppo_tanh_random_hybrid_cliff_50k,PPO,Tanh,random,none,50000,5,0.072,0,0,0,-63.800729,-64.022312,-0.221583
+ppo_tanh_random_hybrid_cliff_stuck_50k,PPO,Tanh,random,none,50000,5,0.056,1,1,3,-88.966534,-79.51651,9.450024
+ppo_tanh_random_recovery_progress_50k,PPO,Tanh,random,none,50000,5,0.072,0,1,4,-90.245557,-144.517968,-54.272411
+ppo_tanh_random_recovery_no_sensor_terminal_50k,PPO,Tanh,random,none,50000,5,0.088,0,0,0,-124.700493,-134.402966,-9.702472
