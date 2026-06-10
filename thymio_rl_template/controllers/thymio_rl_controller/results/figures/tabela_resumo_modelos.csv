@@ -1,6 +1,6 @@
 Modelo,Algoritmo,Ativacao,Ambiente treino,Timesteps,Area media (m2),Colisoes,Quedas,Cliff/stuck,Melhoria reward,Observacao visual
 PPO Tanh Random,PPO,Tanh,random,50000,0.144,0,0,0.0,12.286626,"Maior area e zero eventos; visualmente conservador, rodando mais no centro."
-PPO ReLU Random,PPO,ReLU,random,50000,0.056,1,0,0.0,-9.304438,"Recuava ao chegar ao precipicio de frente, mas explorou pouco e teve colisao."
+PPO ReLU Random,PPO,ReLU,random,50000,0.056,1,0,0.0,-9.304438,"Recuava ao chegar ao precipicio de frente, mas explorou pouco."
 RecurrentPPO Tanh Random,RecurrentPPO,Tanh,random,50000,0.072,1,3,1.0,-64.010142,Movimento curvo para a direita; continuou com quedas e pouca estabilidade.
-PPO Tanh Standard,PPO,Tanh,standard,50000,0.096,0,0,5.0,-9.358368,Treinado em standard e avaliado em random; andava de costas e terminou por stuck/cliff.
+PPO Tanh Standard,PPO,Tanh,standard,50000,0.096,0,0,5.0,-9.358368,Andava de costas e terminou por stuck/cliff.
 PPO Tanh v3.1,PPO,Tanh,random,20480,0.096,0,0,3.0,-27.214971,"Fazia curvas, mas terminava cedo por cliff warning; boa baseline de seguranca rigida."
