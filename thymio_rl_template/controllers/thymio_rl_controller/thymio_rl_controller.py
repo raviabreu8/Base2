@@ -168,16 +168,16 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
         self.reward_function = ThymioReward(
             cell_size=0.20,
             survival_reward=0.01,
-            new_cell_reward=0.50,
+            new_cell_reward=1.00,
             revisit_penalty=-0.02,
-            max_forward_reward=0.06,
+            max_forward_reward=0.02,
             obstacle_penalty_scale=0.30,
             rotation_penalty_scale=0.02,
-            cliff_warning_penalty=-0.25,
-            ground_recovery_scale=8.00,
+            cliff_warning_penalty=-0.20,
+            ground_recovery_scale=3.00,
             dangerous_forward_penalty_scale=2.00,
-            reverse_recovery_scale=1.00,
-            turn_away_scale=1.00,
+            reverse_recovery_scale=0.20,
+            turn_away_scale=0.20,
             collision_penalty=-50.00,
             fall_penalty=-150.00,
             cliff_penalty=-80.00
@@ -355,13 +355,33 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
             > 0.25
         )
 
-        if (
+        edge_or_tilt_risk = bool(
             cliff_warning
+            or gs_min < 0.45
+            or height_drop > 0.03
+            or tilt_degrees > 5.0
+        )
+
+        stuck_tilt_risk = bool(
+            height_drop > 0.04
+            or tilt_degrees > 8.0
+        )
+
+        low_progress = bool(
+            movement_delta < 0.003
+        )
+
+        if (
+            edge_or_tilt_risk
             and commanded_motion
-            and movement_delta < 0.001
+            and low_progress
         ):
-            self.cliff_stuck_count += 1
-        elif not cliff_warning:
+            self.cliff_stuck_count += (
+                2
+                if stuck_tilt_risk
+                else 1
+            )
+        elif not edge_or_tilt_risk:
             self.cliff_stuck_count = 0
         else:
             self.cliff_stuck_count = max(
@@ -370,7 +390,7 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
             )
 
         cliff_stuck = bool(
-            self.cliff_stuck_count >= 100
+            self.cliff_stuck_count >= 60
         )
 
         cliff_terminal = bool(
@@ -421,6 +441,15 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
             ),
             "movement_delta": float(
                 movement_delta
+            ),
+            "edge_or_tilt_risk": bool(
+                edge_or_tilt_risk
+            ),
+            "low_progress": bool(
+                low_progress
+            ),
+            "stuck_tilt_risk": bool(
+                stuck_tilt_risk
             ),
             "cliff_warning": bool(cliff_warning),
             "confirmed_cliff": bool(confirmed_cliff),
@@ -596,7 +625,7 @@ def main():
     only_evaluate = True
 
     ## Altera estes cinco valores entre experiências.
-    experiment_name = "ppo_tanh_random_recovery_no_sensor_terminal_50k"
+    experiment_name = "ppo_tanh_random_simple_antispin_stuck_50k"
     model_type = "PPO"
     activation_name = "Tanh"
     environment_name = "random"

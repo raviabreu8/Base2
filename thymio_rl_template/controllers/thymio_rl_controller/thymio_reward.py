@@ -295,10 +295,15 @@ class ThymioReward:
             or gs_min < 0.45
         )
 
+        recovered_to_safe_ground = bool(
+            self.previous_ground_sensor_min is not None
+            and self.previous_ground_sensor_min < 0.45
+            and gs_min >= 0.45
+        )
+
         ground_recovery_reward = float(
             self.ground_recovery_scale
-            * ground_improvement
-            if recovery_context
+            if recovered_to_safe_ground
             and not terminal_event
             else 0.0
         )
