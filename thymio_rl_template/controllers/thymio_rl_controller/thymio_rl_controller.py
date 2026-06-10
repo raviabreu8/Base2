@@ -170,9 +170,9 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
             survival_reward=0.01,
             new_cell_reward=1.00,
             revisit_penalty=-0.02,
-            max_forward_reward=0.00,
-            obstacle_penalty_scale=0.30,
-            rotation_penalty_scale=0.00,
+            max_forward_reward=0.02,
+            obstacle_penalty_scale=0.00,
+            rotation_penalty_scale=0.02,
             cliff_warning_penalty=-0.20,
             ground_recovery_scale=3.00,
             dangerous_forward_penalty_scale=2.00,
@@ -625,11 +625,11 @@ def main():
     only_evaluate = True
 
     ## Altera estes cinco valores entre experiências.
-    experiment_name = "ppo_tanh_random_ablation_no_motion_shaping_50k"
+    experiment_name = "ppo_tanh_random_ablation_no_obstacle_penalty_50k"
     model_type = "PPO"
     activation_name = "Tanh"
     environment_name = "random"
-    ablation_name = "no_motion_shaping"
+    ablation_name = "no_obstacle_penalty"
 
     total_training_steps = 50000
     max_episode_steps = 600

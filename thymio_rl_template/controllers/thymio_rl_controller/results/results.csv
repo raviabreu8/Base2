@@ -25,3 +25,4 @@ ppo_relu_random_simple_antispin_stuck_50k,PPO,ReLU,random,none,50000,5,0.056,1,0
 ppo_tanh_random_ablation_no_exploration_50k,PPO,Tanh,random,no_exploration,50000,5,0.072,2,0,0,-106.987245,-119.070981,-12.083735
 ppo_tanh_random_ablation_no_cliff_recovery_50k,PPO,Tanh,random,no_cliff_recovery,50000,5,0.144,0,0,0,-72.033275,-41.199761,30.833515
 ppo_tanh_random_ablation_no_motion_shaping_50k,PPO,Tanh,random,no_motion_shaping,50000,5,0.136,0,0,0,-23.839,8.451442,32.290442
+ppo_tanh_random_ablation_no_obstacle_penalty_50k,PPO,Tanh,random,no_obstacle_penalty,50000,5,0.072,0,0,0,-78.395526,-125.969315,-47.573788
