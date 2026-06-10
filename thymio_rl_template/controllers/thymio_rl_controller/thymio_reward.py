@@ -11,20 +11,23 @@ class ThymioReward:
     - penalização de revisitas;
     - penalização de obstáculos;
     - penalização de rotação excessiva;
-    - penalizações terminais por precipício, colisão e queda.
+    - penalizações terminais  colisão e queda.
     """
 
     def __init__(
         self,
         cell_size=0.20,
-        survival_reward=0.05,
+        survival_reward=0.01,
         new_cell_reward=0.10,
         revisit_penalty=-0.05,
         max_forward_reward=0.15,
         obstacle_penalty_scale=0.30,
         rotation_penalty_scale=0.02,
         cliff_warning_penalty=-1.00,
-        cliff_penalty=-20.00,
+        ground_recovery_scale=2.00,
+        dangerous_forward_penalty_scale=0.50,
+        reverse_recovery_scale=1.00,
+        turn_away_scale=1.00,
         collision_penalty=-5.00,
         fall_penalty=-20.00
     ):
@@ -68,10 +71,31 @@ class ThymioReward:
             cliff_warning_penalty
         )
 
-        ## Penalizações terminais.
-        self.cliff_penalty = float(
-            cliff_penalty
+        ## Recompensa quando o sensor de chão melhora,
+        ## indicando recuperação da borda.
+        self.ground_recovery_scale = float(
+            ground_recovery_scale
         )
+
+        ## Penalização por tentar continuar em frente
+        ## enquanto existe risco de cliff.
+        self.dangerous_forward_penalty_scale = float(
+            dangerous_forward_penalty_scale
+        )
+
+        ## Recompensa imediata por recuar quando existe
+        ## risco de precipício.
+        self.reverse_recovery_scale = float(
+            reverse_recovery_scale
+        )
+
+        ## Recompensa imediata por virar para o lado
+        ## oposto ao sensor de chão mais baixo.
+        self.turn_away_scale = float(
+            turn_away_scale
+        )
+
+        ## Penalizações terminais.
 
         self.collision_penalty = float(
             collision_penalty
@@ -86,6 +110,10 @@ class ThymioReward:
 
         self.new_cell_count = 0
         self.revisit_count = 0
+
+        ## Memória interna usada para recompensar
+        ## recuperação dos sensores de chão.
+        self.previous_ground_sensor_min = None
 
     def position_to_cell(
         self,
@@ -124,6 +152,10 @@ class ThymioReward:
         self.new_cell_count = 0
         self.revisit_count = 0
 
+        ## Memória interna usada para recompensar
+        ## recuperação dos sensores de chão.
+        self.previous_ground_sensor_min = None
+
         initial_cell = self.position_to_cell(
             initial_position
         )
@@ -132,6 +164,8 @@ class ThymioReward:
         self.visited_cells.add(
             initial_cell
         )
+
+        self.previous_ground_sensor_min = None
 
     def compute_exploration_reward(
         self,
@@ -196,15 +230,83 @@ class ThymioReward:
             dtype=np.float32
         )
 
+        ## Nesta estratégia, o cliff não termina o episódio.
+        ## Apenas uma queda real ou colisão são eventos terminais.
         terminal_event = bool(
-            cliff_terminal
-            or collision
+            collision
             or fall
+        )
+
+        ## Risco contínuo de precipício calculado diretamente
+        ## a partir do menor dos dois sensores de chão.
+        ground_sensors = observation[5:7]
+
+        gs_left = float(
+            ground_sensors[0]
+        )
+
+        gs_right = float(
+            ground_sensors[1]
+        )
+
+        gs_min = float(
+            min(
+                gs_left,
+                gs_right
+            )
+        )
+
+        cliff_risk = float(
+            np.clip(
+                (
+                    0.45
+                    - gs_min
+                )
+                / 0.45,
+                0.0,
+                1.0
+            )
+        )
+
+        if self.previous_ground_sensor_min is None:
+            ground_improvement = 0.0
+        else:
+            ground_improvement = float(
+                max(
+                    gs_min
+                    - self.previous_ground_sensor_min,
+                    0.0
+                )
+            )
+
+        ## Só dá bónus de recuperação se o robô
+        ## estava ou está numa zona de risco.
+        recovery_context = bool(
+            (
+                self.previous_ground_sensor_min
+                is not None
+                and self.previous_ground_sensor_min < 0.45
+            )
+            or gs_min < 0.45
+        )
+
+        ground_recovery_reward = float(
+            self.ground_recovery_scale
+            * ground_improvement
+            if recovery_context
+            and not terminal_event
+            else 0.0
+        )
+
+        self.previous_ground_sensor_min = gs_min
+
+        cliff_active = bool(
+            cliff_risk > 0.0
         )
 
         ## Um aviso não termina, mas o passo já não é seguro.
         unsafe_event = bool(
-            cliff_warning
+            cliff_active
             or terminal_event
         )
 
@@ -245,13 +347,113 @@ class ThymioReward:
             / 2.0
         )
 
-        ## Só velocidades positivas recebem recompensa.
+        ## Mede a diferença entre as rodas.
+        ## 0 significa rodas iguais e 1 rotação máxima.
+        rotation_amount = float(
+            abs(
+                float(action[0])
+                - float(action[1])
+            )
+            / 2.0
+        )
+
+        ## Curvas suaves continuam a receber boa recompensa.
+        ## Apenas rotações muito fortes reduzem bastante o avanço.
+        ##
+        ## Durante risco de cliff, avançar não recebe recompensa:
+        ## o robô deve aprender a recuar ou virar para recuperar.
         forward_reward = float(
             self.max_forward_reward
             * max(
                 linear_velocity,
                 0.0
             )
+            * (
+                1.0
+                - 0.50 * rotation_amount
+            )
+            if not cliff_active
+            else 0.0
+        )
+
+        ## Se há risco de cliff, continuar a avançar
+        ## para a frente é perigoso. Recuar não é penalizado.
+        dangerous_forward_reward = float(
+            -self.dangerous_forward_penalty_scale
+            * max(
+                linear_velocity,
+                0.0
+            )
+            * cliff_risk
+            if cliff_active
+            and not terminal_event
+            else 0.0
+        )
+
+        ## Em risco de precipício, recuar é imediatamente
+        ## melhor do que continuar a avançar.
+        reverse_recovery_reward = float(
+            self.reverse_recovery_scale
+            * max(
+                -linear_velocity,
+                0.0
+            )
+            * cliff_risk
+            if cliff_active
+            and not terminal_event
+            else 0.0
+        )
+
+        ## Diferença entre os sensores: quanto maior, mais claro
+        ## é de que lado está o precipício.
+        ground_side_difference = float(
+            abs(
+                gs_left
+                - gs_right
+            )
+        )
+
+        turn_direction_confidence = float(
+            np.clip(
+                ground_side_difference
+                / 0.45,
+                0.0,
+                1.0
+            )
+        )
+
+        turn_away_amount = 0.0
+
+        if cliff_active and not terminal_event:
+            if gs_left < gs_right:
+                ## Precipício à esquerda: roda esquerda mais
+                ## rápida ajuda a virar para a direita.
+                turn_away_amount = max(
+                    (
+                        float(action[0])
+                        - float(action[1])
+                    )
+                    / 2.0,
+                    0.0
+                )
+
+            elif gs_right < gs_left:
+                ## Precipício à direita: roda direita mais
+                ## rápida ajuda a virar para a esquerda.
+                turn_away_amount = max(
+                    (
+                        float(action[1])
+                        - float(action[0])
+                    )
+                    / 2.0,
+                    0.0
+                )
+
+        turn_away_reward = float(
+            self.turn_away_scale
+            * turn_away_amount
+            * cliff_risk
+            * turn_direction_confidence
         )
 
         # =====================================================
@@ -278,15 +480,6 @@ class ThymioReward:
         # 5. ROTAÇÃO EXCESSIVA
         # =====================================================
 
-        ## A diferença máxima possível entre as rodas é 2.
-        rotation_amount = float(
-            abs(
-                float(action[0])
-                - float(action[1])
-            )
-            / 2.0
-        )
-
         rotation_reward = float(
             -self.rotation_penalty_scale
             * rotation_amount
@@ -296,11 +489,14 @@ class ThymioReward:
         # 6. AVISO DE PRECIPÍCIO
         # =====================================================
 
-        ## Penalização leve: o episódio continua.
+        ## Penalização contínua:
+        ## 0.00 quando gs_min >= 0.45;
+        ## aproxima-se de -1.00 quando gs_min chega a 0.
+        ## O episódio continua para permitir recuperação.
         cliff_warning_reward = float(
             self.cliff_warning_penalty
-            if cliff_warning
-            and not terminal_event
+            * cliff_risk
+            if not terminal_event
             else 0.0
         )
 
@@ -310,8 +506,6 @@ class ThymioReward:
 
         if fall:
             terminal_reward = self.fall_penalty
-        elif cliff_terminal:
-            terminal_reward = self.cliff_penalty
         elif collision:
             terminal_reward = self.collision_penalty
         else:
@@ -332,6 +526,10 @@ class ThymioReward:
             + obstacle_reward
             + rotation_reward
             + cliff_warning_reward
+            + ground_recovery_reward
+            + dangerous_forward_reward
+            + reverse_recovery_reward
+            + turn_away_reward
             + terminal_reward
         )
 
@@ -343,20 +541,25 @@ class ThymioReward:
             "reward_obstacle": obstacle_reward,
             "reward_rotation": rotation_reward,
             "reward_cliff_warning": cliff_warning_reward,
+            "reward_ground_recovery": ground_recovery_reward,
+            "reward_dangerous_forward": dangerous_forward_reward,
+            "reward_reverse_recovery": reverse_recovery_reward,
+            "reward_turn_away": turn_away_reward,
+            "turn_away_amount": float(turn_away_amount),
+            "turn_direction_confidence": turn_direction_confidence,
+            "ground_side_difference": ground_side_difference,
             "reward_terminal": terminal_reward,
-            "reward_cliff": float(
-                cliff_warning_reward
-                + (
-                    self.cliff_penalty
-                    if cliff_terminal
-                    and not fall
-                    else 0.0
-                )
-            ),
+            ## O cliff deixa de ter penalização terminal.
+            ## Esta componente contém apenas o gradiente contínuo.
+            "reward_cliff": cliff_warning_reward,
+            "cliff_risk": cliff_risk,
+            "ground_sensor_min": gs_min,
+            "ground_sensor_left": gs_left,
+            "ground_sensor_right": gs_right,
+            "ground_improvement": ground_improvement,
             "reward_collision": (
                 self.collision_penalty
                 if collision
-                and not cliff_terminal
                 and not fall
                 else 0.0
             ),

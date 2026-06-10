@@ -60,6 +60,10 @@ class ThymioSafety:
         ## Número de avisos acumulados.
         self.cliff_warning_count = 0
 
+        ## Conta quantas decisões consecutivas
+        ## tiveram os dois sensores abaixo do limiar crítico.
+        self.both_low_count = 0
+
     def reset(
         self,
         observation
@@ -78,6 +82,7 @@ class ThymioSafety:
         )
 
         self.cliff_warning_count = 0
+        self.both_low_count = 0
 
     def detect_cliff(
         self,
@@ -92,7 +97,11 @@ class ThymioSafety:
             confirmed_cliff,
             delta_gs,
             gs_min,
-            cliff_warning_count
+            gs_left,
+            gs_right,
+            cliff_warning_count,
+            both_sensors_low,
+            both_low_count
         """
 
         ground_sensors = np.asarray(
@@ -148,16 +157,26 @@ class ThymioSafety:
             self.cliff_warning_count > 0
         )
 
-        ## Nível crítico: leitura já muito baixa.
-        #apenas diagnostico n entra na recompensa
-        confirmed_cliff = bool(
-            gs_min
-            < self.cliff_threshold
+        ## Um único sensor baixo continua a ser apenas aviso.
+        ## O cliff só é confirmado quando os dois sensores
+        ## estão abaixo do limiar crítico.
+        both_sensors_low = bool(
+            gs_left < self.cliff_threshold
+            and
+            gs_right < self.cliff_threshold
         )
 
-        ## Termina por leitura crítica ou dois avisos acumulados.
+        confirmed_cliff = both_sensors_low
+
+        ## Exige duas decisões consecutivas com os dois
+        ## sensores baixos antes de terminar o episódio.
+        if both_sensors_low:
+            self.both_low_count += 1
+        else:
+            self.both_low_count = 0
+
         critical_cliff = bool(
-            self.cliff_warning_count
+            self.both_low_count
             >= self.cliff_warning_limit
         )
 
@@ -171,7 +190,9 @@ class ThymioSafety:
             gs_min,
             gs_left,
             gs_right,
-            self.cliff_warning_count
+            self.cliff_warning_count,
+            both_sensors_low,
+            self.both_low_count
         )
 
     def get_tilt_degrees(self):

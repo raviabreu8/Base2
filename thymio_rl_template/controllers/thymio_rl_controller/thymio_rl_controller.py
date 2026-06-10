@@ -165,14 +165,17 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
 
         self.reward_function = ThymioReward(
             cell_size=0.20,
-            survival_reward=0.05,
+            survival_reward=0.01,
             new_cell_reward=0.10,
             revisit_penalty=-0.05,
             max_forward_reward=0.15,
             obstacle_penalty_scale=0.30,
             rotation_penalty_scale=0.02,
             cliff_warning_penalty=-1.00,
-            cliff_penalty=-20.00,
+            ground_recovery_scale=2.00,
+            dangerous_forward_penalty_scale=0.50,
+            reverse_recovery_scale=1.00,
+            turn_away_scale=1.00,
             collision_penalty=-5.00,
             fall_penalty=-20.00
         )
@@ -285,7 +288,9 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
             gs_min,
             gs_left,
             gs_right,
-            cliff_warning_count
+            cliff_warning_count,
+            both_sensors_low,
+            both_low_count
         ) = self.safety.detect_cliff(
             self.state
         )
@@ -329,9 +334,10 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
             fall=fall
         )
 
+        ## O cliff não termina o episódio.
+        ## O robô pode tentar recuar ou virar.
         terminated = bool(
             fall
-            or critical_cliff
             or collision
         )
 
@@ -359,6 +365,12 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
             "cliff_warning_count": int(
                 cliff_warning_count
             ),
+            "both_sensors_low": bool(
+                both_sensors_low
+            ),
+            "both_low_count": int(
+                both_low_count
+            ),
             "collision": bool(collision),
             "max_front_proximity": float(
                 max_front_proximity
@@ -371,13 +383,9 @@ class OpenAIGymEnvironment(Supervisor, gym.Env):
                 "fall"
                 if fall
                 else (
-                    "cliff"
-                    if critical_cliff
-                    else (
-                        "collision"
-                        if collision
-                        else None
-                    )
+                    "collision"
+                    if collision
+                    else None
                 )
             ),
             "truncation_reason": (
@@ -518,7 +526,7 @@ def main():
     only_evaluate = True
 
     ## Altera estes cinco valores entre experiências.
-    experiment_name = "ppo_tanh_random_cliff_warning_v3_1"
+    experiment_name = "ppo_tanh_random_directional_cliff_recovery"
     model_type = "PPO"
     activation_name = "Tanh"
     environment_name = "random"

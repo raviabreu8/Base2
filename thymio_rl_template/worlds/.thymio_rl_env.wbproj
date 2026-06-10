@@ -5,5 +5,5 @@ sceneTreePerspectives: 000000ff000000010000000300000022000000c0000000fa010000000
 maximizedDockId: -1
 centralWidgetVisible: 1
 orthographicViewHeight: 1
-textFiles: 1 "controllers/thymio_rl_controller/thymio_rl_controller.py" "worlds/thymio_rl_env.wbt"
+textFiles: 1 "../../../Base2/thymio_rl_template/controllers/thymio_rl_controller/thymio_rl_controller.py" "../../../Base2/thymio_rl_template/worlds/thymio_rl_env.wbt"
 consoles: Console:All:All
