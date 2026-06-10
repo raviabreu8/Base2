@@ -11,3 +11,4 @@ ppo_tanh_random_cliff_nonterminal,PPO,Tanh,random,none,20480,5,0.072,0,5,0,-17.6
 ppo_tanh_random_cliff_recovery_reward,PPO,Tanh,random,none,20480,5,0.08,0,5,0,-16.025321,-23.46249,-7.437169
 ppo_tanh_random_cliff_recovery_reward_150k,PPO,Tanh,random,none,150000,5,0.08,0,5,0,-16.025321,-20.553113,-4.527792
 ppo_tanh_random_directional_cliff_recovery,PPO,Tanh,random,none,20480,5,0.072,0,4,0,-11.22654,-80.022362,-68.795822
+ppo_tanh_random_hybrid_cliff_50k,PPO,Tanh,random,none,50000,5,0.072,0,0,0,-63.800729,-64.022312,-0.221583

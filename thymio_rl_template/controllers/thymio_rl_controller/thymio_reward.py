@@ -29,7 +29,8 @@ class ThymioReward:
         reverse_recovery_scale=1.00,
         turn_away_scale=1.00,
         collision_penalty=-5.00,
-        fall_penalty=-20.00
+        fall_penalty=-20.00,
+        cliff_penalty=-80.00
     ):
         ## Tamanho de cada célula da grelha de exploração.
         self.cell_size = float(
@@ -103,6 +104,10 @@ class ThymioReward:
 
         self.fall_penalty = float(
             fall_penalty
+        )
+
+        self.cliff_penalty = float(
+            cliff_penalty
         )
 
         self.visited_cells = set()
@@ -230,10 +235,10 @@ class ThymioReward:
             dtype=np.float32
         )
 
-        ## Nesta estratégia, o cliff não termina o episódio.
-        ## Apenas uma queda real ou colisão são eventos terminais.
+
         terminal_event = bool(
             collision
+            or cliff_terminal
             or fall
         )
 
@@ -506,6 +511,8 @@ class ThymioReward:
 
         if fall:
             terminal_reward = self.fall_penalty
+        elif cliff_terminal:
+            terminal_reward = self.cliff_penalty
         elif collision:
             terminal_reward = self.collision_penalty
         else:
@@ -549,9 +556,14 @@ class ThymioReward:
             "turn_direction_confidence": turn_direction_confidence,
             "ground_side_difference": ground_side_difference,
             "reward_terminal": terminal_reward,
-            ## O cliff deixa de ter penalização terminal.
-            ## Esta componente contém apenas o gradiente contínuo.
             "reward_cliff": cliff_warning_reward,
+            "reward_cliff_terminal": (
+                self.cliff_penalty
+                if cliff_terminal
+                and not fall
+                and not collision
+                else 0.0
+            ),
             "cliff_risk": cliff_risk,
             "ground_sensor_min": gs_min,
             "ground_sensor_left": gs_left,
