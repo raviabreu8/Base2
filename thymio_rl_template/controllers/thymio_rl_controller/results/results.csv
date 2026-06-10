@@ -23,3 +23,4 @@ recurrent_tanh_random_simple_antispin_stuck_50k,RecurrentPPO,Tanh,random,none,50
 ppo_tanh_standard_simple_antispin_stuck_50k,PPO,Tanh,standard,none,50000,5,0.096,0,0,5,-108.358661,-117.717028,-9.358368
 ppo_relu_random_simple_antispin_stuck_50k,PPO,ReLU,random,none,50000,5,0.056,1,0,0,-71.26696,-80.571398,-9.304438
 ppo_tanh_random_ablation_no_exploration_50k,PPO,Tanh,random,no_exploration,50000,5,0.072,2,0,0,-106.987245,-119.070981,-12.083735
+ppo_tanh_random_ablation_no_cliff_recovery_50k,PPO,Tanh,random,no_cliff_recovery,50000,5,0.144,0,0,0,-72.033275,-41.199761,30.833515
