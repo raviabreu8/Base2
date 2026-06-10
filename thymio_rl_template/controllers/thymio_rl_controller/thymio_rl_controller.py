@@ -464,14 +464,51 @@ def load_model(
     )
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 def main():
 
     # =========================================================
     # CONFIGURAÇÃO DA EXPERIÊNCIA
     # =========================================================
 
+    ## True: carrega o modelo existente e apenas avalia.
+    ## False: treina um modelo novo e depois avalia.
+    only_evaluate = True
+
     ## Altera estes cinco valores entre experiências.
-    experiment_name = "ppo_tanh_v2_10penaltyFallCliff"
+    experiment_name = "ppo_tanh_random_reward_v2"
     model_type = "PPO"
     activation_name = "Tanh"
     environment_name = "random"
@@ -544,65 +581,97 @@ def main():
         )
     )
 
-    model = create_model(
-        model_type=model_type,
-        activation_name=activation_name,
-        env=env
-    )
+    ## Só cria uma rede nova quando vamos treinar.
+    if only_evaluate:
+        model = None
+    else:
+        model = create_model(
+            model_type=model_type,
+            activation_name=activation_name,
+            env=env
+        )
 
     try:
         # =====================================================
-        # TREINO
+        # TREINO OU CARREGAMENTO
         # =====================================================
 
-        print()
-        print("=" * 70)
-        print("TREINO")
-        print("=" * 70)
-        print("Experiência:", experiment_name)
-        print("Modelo:", model_type)
-        print("Ativação:", activation_name)
-        print("Ambiente:", environment_name)
-        print("Timesteps:", total_training_steps)
+        if not only_evaluate:
+            print()
+            print("=" * 70)
+            print("TREINO")
+            print("=" * 70)
+            print("Experiência:", experiment_name)
+            print("Modelo:", model_type)
+            print("Ativação:", activation_name)
+            print("Ambiente:", environment_name)
+            print("Timesteps:", total_training_steps)
 
-        model.learn(
-            total_timesteps=(
-                total_training_steps
-            ),
-            callback=[
-                checkpoint_callback,
-                training_reward_callback
-            ],
-            reset_num_timesteps=True,
-            progress_bar=False
-        )
+            model.learn(
+                total_timesteps=(
+                    total_training_steps
+                ),
+                callback=[
+                    checkpoint_callback,
+                    training_reward_callback
+                ],
+                reset_num_timesteps=True,
+                progress_bar=False
+            )
 
-        model.save(
-            final_model_path
-        )
+            model.save(
+                final_model_path
+            )
 
-        (
-            mean_reward_start,
-            mean_reward_end,
-            reward_improvement
-        ) = training_reward_callback.get_reward_summary(
-            window_size=10
-        )
+            (
+                mean_reward_start,
+                mean_reward_end,
+                reward_improvement
+            ) = training_reward_callback.get_reward_summary(
+                window_size=10
+            )
 
-        print()
-        print("TREINO TERMINADO")
-        print(
-            "Reward média inicial:",
-            round(mean_reward_start, 3)
-        )
-        print(
-            "Reward média final:",
-            round(mean_reward_end, 3)
-        )
-        print(
-            "Melhoria:",
-            round(reward_improvement, 3)
-        )
+            print()
+            print("TREINO TERMINADO")
+            print(
+                "Reward média inicial:",
+                round(mean_reward_start, 3)
+            )
+            print(
+                "Reward média final:",
+                round(mean_reward_end, 3)
+            )
+            print(
+                "Melhoria:",
+                round(reward_improvement, 3)
+            )
+
+        else:
+            saved_model_file = (
+                final_model_path
+                + ".zip"
+            )
+
+            if not os.path.exists(
+                saved_model_file
+            ):
+                raise FileNotFoundError(
+                    "Modelo não encontrado: "
+                    + saved_model_file
+                )
+
+            print()
+            print("=" * 70)
+            print("MODO APENAS AVALIAÇÃO")
+            print("=" * 70)
+            print(
+                "Modelo carregado:",
+                saved_model_file
+            )
+
+            mean_reward_start = float("nan")
+            mean_reward_end = float("nan")
+            reward_improvement = float("nan")
 
         # =====================================================
         # AVALIAÇÃO
@@ -726,7 +795,6 @@ def main():
             if info["fall"]:
                 total_falls += 1
 
-            #NOVO
             episode_reason = (
                 info["termination_reason"]
                 if terminated
@@ -779,47 +847,56 @@ def main():
         # GUARDAR UMA ÚNICA LINHA NO results.csv
         # =====================================================
 
-        results_csv.append_experiment(
-            experiment=experiment_name,
-            model=model_type,
-            activation=activation_name,
-            environment=environment_name,
-            ablation=ablation_name,
-            training_timesteps=(
-                total_training_steps
-            ),
-            evaluation_episodes=len(
-                evaluation_seeds
-            ),
-            mean_covered_area_m2=(
-                mean_covered_area_m2
-            ),
-            total_collisions=(
-                total_collisions
-            ),
-            total_falls=total_falls,
-            total_cliff_terminations=(
-                total_cliff_terminations
-            ),
-            mean_reward_start=(
-                mean_reward_start
-            ),
-            mean_reward_end=(
-                mean_reward_end
-            ),
-            reward_improvement=(
-                reward_improvement
+        ## Em modo apenas avaliação não cria uma linha duplicada.
+        if not only_evaluate:
+            results_csv.append_experiment(
+                experiment=experiment_name,
+                model=model_type,
+                activation=activation_name,
+                environment=environment_name,
+                ablation=ablation_name,
+                training_timesteps=(
+                    total_training_steps
+                ),
+                evaluation_episodes=len(
+                    evaluation_seeds
+                ),
+                mean_covered_area_m2=(
+                    mean_covered_area_m2
+                ),
+                total_collisions=(
+                    total_collisions
+                ),
+                total_falls=total_falls,
+                total_cliff_terminations=(
+                    total_cliff_terminations
+                ),
+                mean_reward_start=(
+                    mean_reward_start
+                ),
+                mean_reward_end=(
+                    mean_reward_end
+                ),
+                reward_improvement=(
+                    reward_improvement
+                )
             )
-        )
 
         print()
         print("=" * 70)
-        print("RESULTADO GUARDADO")
-        print("=" * 70)
         print(
-            "CSV:",
-            results_csv.csv_path
+            "RESULTADO GUARDADO"
+            if not only_evaluate
+            else "RESUMO DA AVALIAÇÃO"
         )
+        print("=" * 70)
+
+        if not only_evaluate:
+            print(
+                "CSV:",
+                results_csv.csv_path
+            )
+
         print(
             "Área média coberta:",
             round(mean_covered_area_m2, 4),
